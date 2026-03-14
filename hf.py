@@ -1,14 +1,11 @@
 import config
 from huggingface_hub import InferenceClient
+import streamlit as st
 
-MODELS = getattr(
-    config,
-    "HF_MODELS",
-    ["meta-llama/Llama-3.1-8B-Instruct"],
-)
+MODELS = st.secrets.get("HF_MODELS", ["meta-llama/Llama-3.1-8B-Instruct"])
 
 def generate_response(prompt: str, temperature: float = 0.3, max_tokens: int = 512) -> str:
-    key = getattr(config, "HF_API_KEY", None)
+    key = st.secrets['GROQ_API_KEY']
     if not key:
         return "Error: HF_API_KEY missing in config.py"
 
