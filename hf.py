@@ -5,7 +5,7 @@ import streamlit as st
 MODELS = st.secrets.get("HF_MODELS", ["meta-llama/Llama-3.1-8B-Instruct"])
 
 def generate_response(prompt: str, temperature: float = 0.3, max_tokens: int = 512) -> str:
-    key = st.secrets['GROQ_API_KEY']
+    key = st.secrets['HF_API_KEY']
     if not key:
         return "Error: HF_API_KEY missing in config.py"
 
