@@ -2,3 +2,4 @@ streamlit
 huggingface_hub
 groq
 python-dotenv
+openai
