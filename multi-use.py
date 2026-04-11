@@ -82,7 +82,7 @@ def run_math_mastermind():
     if not st.session_state.history_ata: return
     st.markdown(CHAT_CSS, unsafe_allow_html=True)
     html = '<div class="wrap">'
-    for i, qa in enumerate(st.session_state.history_ata, 1):
+    for i, qa in enumerate(st.session_state.history_mm, 1):
         html += (f'<div class="card"><div class="q">Q{i}: {qa['question']}</div>'
                  f'<span class="meta">{qa['difficulty']}</span></div>'
                  f'<div class="a">{qa['answer']}</div></div>')
