@@ -37,6 +37,7 @@ def math_answer(q: str, level: str) -> str:
 
 def run_ai_teacher():
     st.title("AI Teaching Assistant")
+    st.info("Get comprehensive answers to difficult questions with our AI Teaching Assistant!")
     st.session_state.setdefault("history_ata", [])
     c1, c2 = st.columns([1, 2])
     if c1.button("Clear", key="c_ata"): st.session_state.history_ata = []; st.rerun()
@@ -60,6 +61,7 @@ def run_ai_teacher():
 
 def run_math_mastermind():
     st.title("AI Math Mastermind")
+    st.info("Watch how our AI Math Mastermind easily solves complex math questions!")
     st.session_state.setdefault("history_mm", [])
     st.session_state.setdefault("k_mm", 0)
     c1, c2 = st.columns([1, 2])
