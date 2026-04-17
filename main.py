@@ -1,77 +1,110 @@
-# main.py (Streamlit) — shorter version
+# main_part1 (Streamlit) 
+import io, re
+from io import BytesIO
+import streamlit as st
+from huggingface_hub import InferenceClient
+import config
 # Switch provider by changing the import line:
-from hf import generate_response
-# from groq import generate_response
+from groq_api import generate_response
+# from hf import generate_response 
 
-import io, streamlit as st
+MATH_SYSTEM = """You are a Math Mastermind.
+Solve with clear step-by-step reasoning, correct notation, and a final answer.
+Verify when possible; mention an alternative method briefly if relevant."""
 
-SYSTEM_PROMPT = """You are a Math Mastermind. For every math problem:
-1) Show step-by-step solution  2) Explain reasoning  3) Give alternate method if possible
-4) Verify answer if possible  5) Use proper notation  6) Break complex problems into parts
-Format: Problem → Steps → **Final Answer** → Concepts used. Be precise and educational."""
-
-def math_generate(problem: str, level: str, temperature=0.1, max_tokens=1024) -> str:
-    prompt = f"{SYSTEM_PROMPT}\n\nMath Problem ({level}): {problem}"
-    return generate_response(prompt, temperature=temperature, max_tokens=max_tokens)
+CHAT_CSS = """
+<style>
+.wrap {max-height: 520px; overflow-y: auto; padding-right: 6px;}
+.card{border:1px solid #e6e6e6;background:#fff;border-radius:10px;padding:14px 16px;margin:10px 0;
+box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+.q{font-weight:700;color:#0a6ebd;margin-bottom:8px;}
+.meta{display:inline-block;background:#FF9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:8px}
+.a{white-space:pre-wrap;color:#333;line-height:1.5;}
+</style>
+"""
 
 def export_txt(history):
-    txt = "\n\n".join([f"Q{i}: {h['q']}\nA{i}: {h['a']}" for i, h in enumerate(history, 1)])
-    return io.BytesIO(txt.encode("utf-8"))
+    txt = "".join([f"Q{i}: {h['question']}\nA{i}: {h['answer']}\n\n" for i, h in enumerate(history, 1)])
+    bio = io.BytesIO(txt.encode("utf-8")); bio.seek(0); return bio
 
-def setup_ui():
-    st.set_page_config(page_title="🧮 Math Mastermind", layout="centered")
-    st.title("🧮 Math Mastermind")
-    st.write("Solve any math problem with detailed step-by-step explanations.")
+def teaching_answer(q: str) -> str:
+    return generate_response(q, temperature=0.3, max_tokens=1024)
 
-    with st.expander("📌 Examples"):
-        st.markdown(
-            '- Algebra: "Solve 2x² + 5x − 3 = 0"\n'
-            '- Calculus: "Derivative of sin(x²) + ln(x)"\n'
-            '- Geometry: "Area of triangle (0,0),(3,4),(6,0)"\n'
-            '- Probability: "P(sum=7 with two dice)"'
-        )
+def math_answer(q: str, level: str) -> str:
+    prompt = f"{MATH_SYSTEM}\n\nDifficulty: {level}\nMath Problem: {q}"
+    return generate_response(prompt, temperature=0.1, max_tokens=1024)
 
-    st.session_state.setdefault("history", [])
-    st.session_state.setdefault("k", 0)
-
+def run_ai_teaching_assistant():
+    st.title("🤖 AI Teaching Assistant")
+    st.session_state.setdefault("history_ata", [])
     c1, c2 = st.columns([1, 2])
-    if c1.button("🗑️ Clear"):
-        st.session_state.history = []; st.rerun()
+    if c1.button("🧹 Clear", key="c_ata"): st.session_state.history_ata = []; st.rerun()
+    if st.session_state.history_ata:
+        c2.download_button("📄 Export", export_txt(st.session_state.history_ata),
+                           "AI_Teaching_Assistant_Conversation.txt", "text/plain")
+    q = st.text_input("Enter your question:", key="q_ata")
+    if st.button("Ask", key="a_ata"):
+        if not q.strip(): st.warning("⚠️ Enter a question.")
+        else:
+            with st.spinner("Thinking..."):
+                st.session_state.history_ata.append({"question": q.strip(), "answer": teaching_answer(q.strip())})
+            st.rerun()
 
-    if st.session_state.history:
-        c2.download_button("📄 Export", export_txt(st.session_state.history),
-                           "Math_Mastermind_Solutions.txt", "text/plain")
-
-    with st.form("math_form", clear_on_submit=True):
-        q = st.text_area("📝 Enter your math problem:", height=100,
-                         placeholder="Example: Solve x² + 5x + 6 = 0",
-                         key=f"q_{st.session_state.k}")
-        a, b = st.columns([3, 1])
-        solve = a.form_submit_button("🧠 Solve", use_container_width=True)
-        level = b.selectbox("Level", ["Basic", "Intermediate", "Advanced"], index=1)
-
-        if solve:
-            if not q.strip(): st.warning("⚠️ Enter a problem first.")
-            else:
-                with st.spinner("Solving..."):
-                    ans = math_generate(q.strip(), level)
-                st.session_state.history.insert(0, {"q": q.strip(), "a": ans, "lvl": level})
-                st.session_state.k += 1; st.rerun()
-
-    if not st.session_state.history: return
-    st.markdown("### 🧾 Solution History (Latest First)")
-    st.markdown("""<style>
-    .box{max-height:500px;overflow-y:auto;border:2px solid #4CAF50;padding:12px;background:#f7fbff;border-radius:10px}
-    .q{font-weight:700;color:#2E7D32;margin-top:12px}
-    .lvl{display:inline-block;background:#FF9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:8px}
-    .a{white-space:pre-wrap;color:#1B5E20;background:#fff;padding:10px;border-radius:8px;border-left:4px solid #4CAF50;margin:6px 0 14px}
-    </style>""", unsafe_allow_html=True)
-
-    html = '<div class="box">'
-    for i, h in enumerate(st.session_state.history, 1):
-        html += f'<div class="q">Q{i}: {h["q"]}<span class="lvl">{h["lvl"]}</span></div>'
-        html += f'<div class="a">{h["a"]}</div>'
+    if not st.session_state.history_ata: return
+    st.markdown(CHAT_CSS, unsafe_allow_html=True)
+    html = '<div class="wrap">'
+    for i, qa in enumerate(st.session_state.history_ata, 1):
+        html += f'<div class="card"><div class="q">Q{i}: {qa["question"]}</div><div class="a">{qa["answer"]}</div></div>'
     st.markdown(html + "</div>", unsafe_allow_html=True)
 
+def run_math_mastermind():
+    st.title("🧮 Math Mastermind")
+    st.session_state.setdefault("history_mm", [])
+    st.session_state.setdefault("k_mm", 0)
+    c1, c2 = st.columns([1, 2])
+    if c1.button("🧹 Clear", key="c_mm"): st.session_state.history_mm = []; st.rerun()
+    if st.session_state.history_mm:
+        c2.download_button("📄 Export", export_txt(st.session_state.history_mm),
+                           "Math_Mastermind_Solutions.txt", "text/plain")
+    with st.form("mm_form", clear_on_submit=True):
+        q = st.text_area("Math problem:", height=100, key=f"mm_{st.session_state.k_mm}")
+        a, b = st.columns([3, 1])
+        go = a.form_submit_button("Solve", use_container_width=True)
+        lvl = b.selectbox("Level", ["Basic", "Intermediate", "Advanced"], index=1)
+        if go:
+            if not q.strip(): st.warning("⚠️ Enter a problem.")
+            else:
+                with st.spinner("Solving..."):
+                    ans = math_answer(q.strip(), lvl)
+                st.session_state.history_mm.insert(0, {"question": q.strip(), "answer": ans, "difficulty": lvl})
+                st.session_state.k_mm += 1; st.rerun()
+
+    if not st.session_state.history_mm: return
+    st.markdown(CHAT_CSS, unsafe_allow_html=True)
+    html = '<div class="wrap">'
+    for i, qa in enumerate(st.session_state.history_mm, 1):
+        html += (f'<div class="card"><div class="q">Q{i}: {qa["question"]}'
+                 f'<span class="meta">{qa["difficulty"]}</span></div>'
+                 f'<div class="a">{qa["answer"]}</div></div>')
+    st.markdown(html + "</div>", unsafe_allow_html=True)
+
+
+
+
+# ✅ placeholder: once you paste Part 2 below, safe ai image generation will work
+def run_safe_ai_image_generator():
+    st.info("Paste Part 2 code to enable Safe AI Image Generator.")
+
+
+
+
+
+def main():
+    st.sidebar.title("Choose AI Feature")
+    opt = st.sidebar.selectbox("", ["AI Teaching Assistant", "Math Mastermind", "Safe AI Image Generator"])
+    if opt == "AI Teaching Assistant": run_ai_teaching_assistant()
+    elif opt == "Math Mastermind": run_math_mastermind()
+    else: run_safe_ai_image_generator()
+
 if __name__ == "__main__":
-    setup_ui()
+    main()
